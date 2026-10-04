@@ -1,13 +1,13 @@
 // Slide engine + physics scenes. Scenes are keyed by slide number (1-based).
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const slides=$$('.slide');let cur=0,wt=0;
-const S={ch:{},k:{},s9:'',mode:'before',amp:0,p3:-1,w7:0,play:true,rev:0,revT:0,hl:'',tm:'x',ct:{}};
+const S={ch:{},k:{},s9:'',mode:'before',amp:0,p3:-1,w7:0,play:true,rev:0,revT:0,hl:'',tm:'x',ct:{},loud:38,ld:.38,pl3:false,ph3:0,t4:0};
 const TAU=Math.PI*2,INK='#f3ecd0',G='#7fa68a',CY='#6fb7c9',Y='#e8c872';
 function fit(c){const d=devicePixelRatio||1,r=c.getBoundingClientRect();c.width=r.width*d;c.height=r.height*d;c.W=r.width;c.H=r.height;c.x=c.getContext('2d');c.x.setTransform(d,0,0,d,0,0)}
 const fitAll=()=>$$('canvas').forEach(fit);addEventListener('resize',fitAll);
 function go(i){cur=Math.max(0,Math.min(slides.length-1,i));slides.forEach((s,j)=>s.classList.toggle('on',j==cur));
  $('#bar i').style.width=cur/(slides.length-1)*100+'%';$('#num').textContent=cur+1+' / '+slides.length;$('#menu').classList.remove('on');
- if(cur==2){S.p3=-1;$('#m3').classList.remove('show')}if(cur==7){S.revT=0;S.rev=0;S.hl=''}history.replaceState(null,'','#'+(cur+1))}
+ if(cur==2){S.p3=-1;S.pl3=false;$('#b3').textContent='▶ Play Sound';$('#m3').classList.remove('show')}if(cur==7){S.revT=0;S.rev=0;S.hl=''}history.replaceState(null,'','#'+(cur+1))}
 $('#menu').innerHTML=slides.map((s,i)=>`<a data-a="go:${i}">${i+1}. ${s.dataset.t}</a>`).join('');
 const acts={
  go:v=>go(+v),nav:v=>go(cur+ +v),menu:()=>$('#menu').classList.toggle('on'),
@@ -17,12 +17,13 @@ const acts={
   if(n>=N){s.forEach(e=>e.classList.remove('lit'));c.classList.remove('done');n=0}else{if(n<s.length)s[n].classList.add('lit');n++;if(n==N)c.classList.add('done')}
   S.ch[v]=n;S.k[v]=0;$(`[data-a="chain:${v}"]`).textContent=n>=N?'Restart ↺':'Next step ▶'},
  mode:(v,b)=>{S.mode=v;$$('[data-a^="mode"]').forEach(x=>x.classList.toggle('act',x==b));['before','during','after'].forEach(m=>$('#x-'+m).classList.toggle('on-card',m==v))},
- play3:()=>{S.p3=0},wave:()=>{S.w7=S.w7?0:1},
+ play3:()=>{S.pl3=!S.pl3;if(S.pl3&&S.p3<0)S.p3=0;$('#b3').textContent=S.pl3?'⏸ Pause Sound':'▶ Play Sound'},wave:()=>{S.w7=S.w7?0:1},
  g8:v=>{if(v=='draw')S.revT=S.revT?0:1;else if(v=='play')S.play=!S.play;else S.hl=v=='none'?'':v},
  tm:(v,b)=>{S.tm=v;$$('[data-a^="tm"]').forEach(x=>x.classList.toggle('act',x==b))},
  ct:v=>{S.s9=S.s9==v?'':v;S.k.s9=0;$$('[data-a^="ct:"]').forEach(b=>b.classList.toggle('act',b.dataset.a=='ct:'+S.s9))}};
 document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const i=b.dataset.a.indexOf(':'),a=i<0?b.dataset.a:b.dataset.a.slice(0,i),v=i<0?'':b.dataset.a.slice(i+1);acts[a]?.(v,b)});
-addEventListener('keydown',e=>{if(e.key=='ArrowRight'||e.key=='PageDown')go(cur+1);if(e.key=='ArrowLeft'||e.key=='PageUp')go(cur-1);if(e.key=='p'||e.key=='P')acts.present();if(e.key=='Escape')document.body.classList.remove('present')});
+addEventListener('keydown',e=>{if(e.target.matches?.('input'))return;if(e.key=='ArrowRight'||e.key=='PageDown')go(cur+1);if(e.key=='ArrowLeft'||e.key=='PageUp')go(cur-1);if(e.key=='p'||e.key=='P')acts.present();if(e.key=='Escape')document.body.classList.remove('present')});
+const ls=$('#loud');ls.addEventListener('input',()=>{S.loud=+ls.value;$('#loudv').textContent=ls.value+'%';ls.style.setProperty('--p',ls.value+'%')});ls.addEventListener('pointerup',()=>ls.blur());ls.style.setProperty('--p',ls.value+'%');
 // ---- helpers
 function txt(x,s,px,py,sz,col,al='left'){x.font=sz+'px "Patrick Hand","Segoe Print",cursive';x.fillStyle=col;x.textAlign=al;x.fillText(s,px,py)}
 function arrow(x,a,b,c,d,col){x.strokeStyle=col;x.lineWidth=2;x.beginPath();x.moveTo(a,b);x.lineTo(c,d);x.stroke();const g=Math.atan2(d-b,c-a);x.beginPath();x.moveTo(c,d);x.lineTo(c-9*Math.cos(g-.4),d-9*Math.sin(g-.4));x.lineTo(c-9*Math.cos(g+.4),d-9*Math.sin(g+.4));x.fill()}
@@ -34,15 +35,20 @@ function block(x,X,Y0,w,h,amp,t,o={}){const rows=o.rows||5,cols=o.cols||36,sp=w/
 // ---- scenes
 const scenes={
 1:(x,W,H)=>{x.clearRect(0,0,W,H);x.strokeStyle=G;x.lineWidth=2;for(let n=0;n<3;n++){x.beginPath();for(let i=0;i<=W;i+=8){const y=H*(.55+.12*n)+Math.sin(i/70+wt*(1+n*.4))*(18+n*10);i?x.lineTo(i,y):x.moveTo(i,y)}x.stroke()}},
-3:(x,W,H,dt)=>{x.clearRect(0,0,W,H);const on=S.p3>=0;if(on){S.p3+=dt;if(S.p3>3)$('#m3').classList.add('show')}const t=S.p3,sy=H*.62,cx0=W*.6,cx1=W*.92;
+3:(x,W,H,dt)=>{x.clearRect(0,0,W,H);const on=S.p3>=0;
+ S.ld+=(S.loud/100-S.ld)*Math.min(1,dt*8); // smoothed loudness 0..1
+ if(on&&S.pl3){S.p3+=dt;S.ph3+=dt;if(S.p3>3)$('#m3').classList.add('show')} // paused = clocks stop, nothing resets
+ const t=S.p3,ph=S.ph3,L=Math.pow(S.ld,1.3),sy=H*.62,cx0=W*.6,cx1=W*.92;
  // source (speaker-like box)
- const v=on?Math.sin(wt*30)*3:0;x.strokeStyle=INK;x.lineWidth=3;x.strokeRect(W*.06+v,H*.48,W*.07,H*.28);txt(x,'loud sound source',W*.03,H*.45,W/45,INK);
- if(on)for(let n=0;n<8;n++){const r=((t*W*.28)-n*W*.07);if(r>0&&r<W*.52){x.strokeStyle=`rgba(111,183,201,${1-r/(W*.52)})`;x.beginPath();x.arc(W*.13,H*.62,r,-.8,.8);x.stroke()}}
+ const v=on?Math.sin(ph*30)*3*(.3+.7*S.ld):0;x.strokeStyle=INK;x.lineWidth=3;x.strokeRect(W*.06+v,H*.48,W*.07,H*.28);txt(x,'loud sound source',W*.03,H*.45,W/45,INK);
+ if(on)for(let n=0;n<8;n++){const r=((t*W*.28)-n*W*.07);if(r>0&&r<W*.52){x.strokeStyle=`rgba(111,183,201,${(1-r/(W*.52))*(.3+.7*S.ld)})`;x.beginPath();x.arc(W*.13,H*.62,r,-.8,.8);x.stroke()}}
  // container + sheet
- x.strokeStyle=INK;x.beginPath();x.moveTo(cx0,sy);x.lineTo(cx0,H*.92);x.lineTo(cx1,H*.92);x.lineTo(cx1,sy);x.stroke();txt(x,'container',cx0+W*.1,H*.97,W/45,INK);
- const hit=on&&t>1.6?Math.min(1,(t-1.6)):0,A=hit*H*.025;x.strokeStyle=Y;x.lineWidth=4;x.beginPath();for(let i=0;i<=40;i++){const px=cx0+(cx1-cx0)*i/40;i?x.lineTo(px,sy+Math.sin(wt*28)*A*Math.sin(Math.PI*i/40)):x.moveTo(px,sy)}x.stroke();
+ x.strokeStyle=INK;x.lineWidth=3;x.beginPath();x.moveTo(cx0,sy);x.lineTo(cx0,H*.92);x.lineTo(cx1,H*.92);x.lineTo(cx1,sy);x.stroke();txt(x,'container',cx0+W*.1,H*.97,W/45,INK);
+ // loudness -> AMPLITUDE (how far things move), not speed
+ const hit=on&&t>1.6?Math.min(1,(t-1.6)):0,A=hit*H*.03*L,f=u=>sy+Math.sin(ph*28)*A*Math.sin(Math.PI*u);
+ x.strokeStyle=Y;x.lineWidth=4;x.beginPath();for(let i=0;i<=40;i++){const px=cx0+(cx1-cx0)*i/40;i?x.lineTo(px,f(i/40)):x.moveTo(px,sy)}x.stroke();
  txt(x,'stretched sheet',cx0,sy-H*.3,W/45,Y);
- for(let i=0;i<9;i++){const gx=cx0+(cx1-cx0)*(i+.5)/9,hop=hit?Math.abs(Math.sin(wt*9+i*1.7))*H*.1*hit:0;x.fillStyle=INK;x.beginPath();x.arc(gx,sy-6-hop,5,0,TAU);x.fill()}
+ for(let i=0;i<9;i++){const u=(i+.5)/9,hop=hit*H*.09*L*(.8+.2*Math.sin(i*2.9+1))*Math.abs(Math.sin(ph*9+i*1.7));x.fillStyle=INK;x.beginPath();x.arc(cx0+(cx1-cx0)*u,f(u)-6-hop,5,0,TAU);x.fill()}
  txt(x,'grains',cx1-W*.05,sy-H*.12,W/45,INK)},
 5:(x,W,H,dt)=>{x.clearRect(0,0,W,H);const tg=S.mode=='during'?1:0;S.amp+=(tg-S.amp)*Math.min(1,dt*3);const a=S.amp,bx=W*.04,bw=W*.92,by=H*.08,bh=H*.84;
  x.strokeStyle=G;x.lineWidth=2;x.strokeRect(bx,by,bw,bh);
@@ -109,17 +115,67 @@ function chainRows(x,W,H,L,rowf,y0,sp,rh,bw,pulseSpeed){const N=L.length,p=(wt*p
  const py=y0+Math.min(p,N-.5)*sp+rh/2;if(p<N){x.fillStyle='rgba(232,200,114,.25)';x.beginPath();x.arc(W*.03+bw+8,py,12,0,TAU);x.fill();x.fillStyle=Y;x.beginPath();x.arc(W*.03+bw+8,py,6,0,TAU);x.fill()}}
 const hint=(x,W,H,s)=>txt(x,s,W/2,H/2,W/30,'#6c7f73','center');
 const cap=(x,W,H,a,b)=>{txt(x,a,W/2,H*.9,W/26,Y,'center');if(b)txt(x,b,W/2,H*.97,W/34,INK,'center')};
-scenes[4]=(x,W,H,dt)=>{x.clearRect(0,0,W,H);const n=st('#ch4'),kt=tick('#ch4',dt),ph=wt*2;
+// ===== Slide 4 "What actually happens?" — ONE particle model drives every step.
+// Each particle has a FIXED equilibrium position (column i, row j). Only a horizontal offset changes:
+//   dx = A * envelope * sin(k*x_eq - phase)   -> neighbours have slightly different phases = a travelling wave
+const clamp01=v=>Math.max(0,Math.min(1,v)),LIGHT='#a9e4f2';
+function spk4(x,cx,cy,s,t,amp){const v=Math.sin(t*30)*s*.05*amp;x.strokeStyle=INK;x.lineWidth=3;x.strokeRect(cx-s*.5,cy-s*.3,s*.4,s*.6);x.beginPath();x.moveTo(cx-s*.1+v,cy-s*.15);x.lineTo(cx+s*.25+v,cy-s*.42);x.lineTo(cx+s*.25+v,cy+s*.42);x.lineTo(cx-s*.1+v,cy+s*.15);x.closePath();x.stroke()}
+function wdx(i,sp,A,k,ph,front,cols){const ex=(i+.5)*sp;return A*clamp01((front*cols*sp-ex)/(sp*3))*Math.sin(k*ex-ph)}
+function wfield(x,X,Yt,sp,cols,rows,o){const k=TAU/(sp*12),r=Math.max(2.6,sp*.13);x.globalAlpha=o.al??1;
+ for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const inz=o.zr&&i>=o.zr[0]&&i<=o.zr[1]&&j>=o.zr[2]&&j<=o.zr[3],tr=o.trk&&o.trk[0]==j&&o.trk[1]==i,
+  ex=X+(i+.5)*sp,py=Yt+(j+.5)*sp,px=ex+wdx(i,sp,o.A,k,o.ph,o.front,cols);
+  if(tr){x.strokeStyle=Y;x.lineWidth=1.5;dash(x,()=>{x.beginPath();x.arc(ex,py,r*2.4,0,TAU);x.stroke()})}
+  x.fillStyle=tr?Y:inz?LIGHT:CY;x.beginPath();x.arc(px,py,tr?r*1.6:r,0,TAU);x.fill()}
+ x.globalAlpha=1;return k}
+function dbl(x,a,b,y,col){x.fillStyle=col;arrow(x,(a+b)/2,y,b,y,col);arrow(x,(a+b)/2,y,a,y,col)}
+scenes[4]=(x,W,H,dt)=>{x.clearRect(0,0,W,H);S.t4+=dt;const t=S.t4,n=st('#ch4'),kt=tick('#ch4',dt),ph=t*3.2;
  if(!n)return hint(x,W,H,'Press  Next step ▶  to follow the sound, one step at a time');
- if(n==1){speaker(x,W*.45,H*.45,W*.3,1);arrow(x,W*.6,H*.14,W*.7,H*.14,Y);arrow(x,W*.7,H*.14,W*.6,H*.14,Y);txt(x,'SOUND SOURCE (e.g. a speaker)',W*.45,H*.8,W/34,G,'center');cap(x,W,H,'Sound source vibrates')}
- else if(n==2){const X=W*.2,w=W*.76,k=TAU/(w/3);speaker(x,W*.08,H*.5,W*.12,1);txt(x,'SOURCE',W*.08,H*.72,W/45,G,'center');txt(x,'AIR PARTICLES',X+w/2,H*.2,W/45,G,'center');
-  const fr=kt*3.2/k;field(x,X,H*.28,w,H*.42,6,26,1,ph,fr,W/150,[2,5]);bands(x,X,H*.28,w,H*.42,ph,fr,k);
-  const ax=X+Math.min(fr,w*.9);arrow(x,ax-W*.12,H*.76,ax,H*.76,Y);txt(x,'disturbance travels →',X+w/2,H*.8,W/38,Y,'center');txt(x,'yellow particle: it only wobbles around its spot',X+w/2,H*.86,W/50,INK,'center');cap(x,W,H,'',0);txt(x,'The disturbance travels through the air.',W/2,H*.96,W/30,Y,'center')}
- else if(n==3){const w=W*.8,X=W*.1;field(x,X,H*.04,w,H*.1,2,60,1,ph,1e9,1.6);const z=Math.min(1,kt/.8);x.strokeStyle=Y;x.lineWidth=2;x.strokeRect(X+w*.42,H*.02,w*.16,H*.14);dash(x,()=>{ln(x,X+w*.42,H*.16,W*.1*z+W*.42*(1-z),H*.3,Y);ln(x,X+w*.58,H*.16,W*.9*z+W*.58*(1-z),H*.3,Y)});txt(x,'zoom in',X+w*.62,H*.2,W/50,Y);
-  x.globalAlpha=z;vib(x,W,H*.48,6,W/48,W*.04,.9);vib(x,W,H*.72,6,W/48,W*.04,.9+.5);x.globalAlpha=1;txt(x,'dashed ring = the particle\'s own position',W/2,H*.86,W/50,G,'center');txt(x,'The particles vibrate around their own positions.',W/2,H*.96,W/30,Y,'center')}
- else if(n<6){sheetScene(x,W,H,n==5);if(n==4)cap(x,W,H,'Air vibrations make the sheet vibrate.');else{txt(x,'The vibrating sheet makes the grains move.',W/2,H*.93,W/30,INK,'center');const a=Math.min(1,kt/.8);x.globalAlpha=a;x.strokeStyle=Y;x.lineWidth=3;x.strokeRect(W*.1,H*.03,W*.8,H*.13);txt(x,'SOUND TRANSFERS ENERGY.',W/2,H*.12,W/18,Y,'center');x.globalAlpha=1}}
- else{const L=['SOUND SOURCE','AIR PARTICLES','WAVE / DISTURBANCE','VIBRATING SHEET','MOVING GRAINS'];chainRows(x,W,H,L,(i,rx,ry,rw,rh,a)=>mini(x,i==4?4:i==3?3:i,rx,ry,rw,rh,a),H*.02,H*.165,H*.13,W*.3,.2);
-  txt(x,'SOUND TRANSFERS ENERGY THROUGH THE MEDIUM',W/2,H*.97,W/27,Y,'center');ln(x,W*.1,H*.99,W*.9,H*.99,Y,3)}};
+ if(n==1){const cx=W*.3,cy=H*.4,s=W*.34;spk4(x,cx,cy,s,t,1);
+  for(let m=0;m<4;m++){const r=(t*W*.15+m*W*.075)%(W*.3);x.strokeStyle=`rgba(111,183,201,${1-r/(W*.3)})`;x.lineWidth=2;x.beginPath();x.arc(cx+s*.25,cy,r,-.9,.9);x.stroke()}
+  dbl(x,cx+s*.02,cx+s*.3,cy-s*.58,Y);txt(x,'vibrates back and forth',cx+s*.34,cy-s*.55,W/42,Y);
+  txt(x,'it pushes and pulls',W*.74,cy-H*.02,W/40,INK,'center');txt(x,'the air next to it',W*.74,cy+H*.05,W/40,INK,'center');
+  txt(x,'SOUND SOURCE (e.g. a speaker)',cx,H*.76,W/36,G,'center');cap(x,W,H,'The sound source vibrates.')}
+ else if(n==2){const cols=26,rows=8,sp=W*.74/cols,X=W*.2,Yt=H*.2,w=cols*sp,hh=rows*sp,fr=Math.min(1.2,kt/4.2);
+  spk4(x,W*.09,Yt+hh/2,W*.14,t,1);txt(x,'SOURCE',W*.09,Yt+hh+H*.05,W/50,G,'center');txt(x,'AIR PARTICLES',X+w/2,H*.15,W/42,G,'center');
+  const k=TAU/(sp*12);bands(x,X,Yt,w,hh,ph,fr*cols*sp,k);wfield(x,X,Yt,sp,cols,rows,{A:sp*.32,ph,front:fr,trk:[3,9]});
+  const ax=X+Math.min(fr*cols*sp,w*.9);arrow(x,ax-W*.14,H*.66,ax,H*.66,Y);txt(x,'the disturbance travels →',X+w/2,H*.73,W/36,Y,'center');
+  txt(x,'yellow particle: it only wobbles around its own spot',X+w/2,H*.81,W/50,INK,'center');cap(x,W,H,'The disturbance travels through the air.')}
+ else if(n==3){const cols=32,rows=6,sp=W*.84/cols,X=W*.08,Yt=H*.085,w=cols*sp,c0=13,c1=17,r0=3,r1=5,rx=X+c0*sp,ry=Yt+r0*sp,rw=5*sp,rh=3*sp,z=clamp01(kt/.7),k=TAU/(sp*12),A=sp*.32;
+  txt(x,'AIR PARTICLES  (normal view)',X,H*.05,W/46,G);txt(x,'wave moves →',X+w,H*.05,W/46,Y,'right');
+  wfield(x,X,Yt,sp,cols,rows,{A,ph,front:1.2,zr:[c0,c1,r0,r1]});
+  x.strokeStyle=Y;x.lineWidth=2.5;x.strokeRect(rx,ry,rw,rh);
+  const M=H*.36/rh,fw=rw*M,fh=rh*M,fx=rx+rw/2-fw/2,fy=H*.47;
+  x.globalAlpha=z;txt(x,'ZOOM AREA',rx+rw/2,ry+rh+W/50+3,W/54,Y,'center');
+  x.lineWidth=2;dash(x,()=>{ln(x,rx,ry+rh,fx,fy,Y);ln(x,rx+rw,ry+rh,fx+fw,fy,Y)});
+  x.fillStyle='rgba(232,200,114,.05)';x.fillRect(fx,fy,fw,fh);x.strokeStyle=Y;x.lineWidth=2.5;x.strokeRect(fx,fy,fw,fh);
+  txt(x,'MAGNIFIED VIEW',fx-14,fy+W/40,W/44,Y,'right');txt(x,'same particles, enlarged',fx-14,fy+W/40+W/46,W/58,INK,'right');
+  txt(x,'the WAVE moves →',fx+fw+16,fy+fh*.3,W/52,Y);txt(x,'each PARTICLE stays',fx+fw+16,fy+fh*.3+W/40,W/52,INK);txt(x,'near its own spot',fx+fw+16,fy+fh*.3+W/20,W/52,INK);
+  const R=Math.max(2.6,sp*.13)*M;
+  for(let j=r0;j<=r1;j++)for(let i=c0;i<=c1;i++){const ex=fx+(i-c0+.5)*sp*M,py=fy+(j-r0+.5)*sp*M,px=ex+wdx(i,sp,A,k,ph,1.2,cols)*M;
+   x.strokeStyle=G;x.lineWidth=1.5;dash(x,()=>{x.beginPath();x.arc(ex,py,R*1.45,0,TAU);x.stroke()});x.fillStyle=LIGHT;x.beginPath();x.arc(px,py,R,0,TAU);x.fill();
+   if(j==r1&&i==c0+2)dbl(x,ex-A*M,ex+A*M,py+R*2.1,Y)}
+  txt(x,'↔  each particle vibrates around its own position (dashed ring)',W/2,fy+fh+W/36,W/52,G,'center');x.globalAlpha=1;
+  txt(x,'Particles vibrate around their own positions.',W/2,H*.97,W/30,Y,'center')}
+ else if(n<6){const cols=20,rows=7,sp=W*.5/cols,X=W*.19,w=cols*sp,sy=H*.6,Yt=sy-rows*sp+sp*.5,c0=W*.74,c1=W*.97,mx=(c0+c1)/2,a=clamp01(kt/1.2),f=u=>sy+Math.sin(t*26)*H*.03*a*Math.sin(Math.PI*u);
+  spk4(x,W*.1,Yt+rows*sp/2,W*.14,t,1);txt(x,'SOURCE',W*.1,Yt+rows*sp+H*.06,W/50,G,'center');
+  txt(x,'AIR PARTICLES',X+w/2,Yt-H*.04,W/46,G,'center');wfield(x,X,Yt,sp,cols,rows,{A:sp*.32,ph,front:1.2});
+  x.fillStyle=Y;arrow(x,X+w+5,sy-sp*1.2,c0+8,sy-6,Y);
+  x.strokeStyle=INK;x.lineWidth=3;x.beginPath();x.moveTo(c0,sy);x.lineTo(c0,H*.84);x.lineTo(c1,H*.84);x.lineTo(c1,sy);x.stroke();txt(x,'container',mx,H*.805,W/50,INK,'center');
+  x.strokeStyle=Y;x.lineWidth=4;x.beginPath();for(let i=0;i<=40;i++)i?x.lineTo(c0+(c1-c0)*i/40,f(i/40)):x.moveTo(c0,sy);x.stroke();txt(x,'stretched sheet',mx,sy+H*.1,W/50,Y,'center');
+  if(n==4){x.fillStyle=Y;arrow(x,mx,sy-H*.17,mx,sy-H*.05,Y);arrow(x,mx,sy-H*.05,mx,sy-H*.17,Y);txt(x,'moves up & down',mx,sy-H*.2,W/50,Y,'center');cap(x,W,H,'Air vibrations make the sheet vibrate.')}
+  else{for(let i=0;i<9;i++){const u=(i+.5)/9,hop=Math.abs(Math.sin(t*8+i*1.7))*H*.075*(.85+.15*Math.sin(i*2.9))*a;x.fillStyle=INK;x.beginPath();x.arc(c0+(c1-c0)*u,f(u)-6-hop,5,0,TAU);x.fill()}
+   txt(x,'grains jump!',mx,sy-H*.22,W/46,INK,'center');cap(x,W,H,'The vibrating sheet makes the grains move.','(just like Activity 10.6)')}}
+ else{const L=[['SOUND','SOURCE'],['SOUND','WAVES'],['AIR PARTICLES','VIBRATE'],['SHEET','VIBRATES'],['GRAINS','MOVE']],bw=W*.15,gap=(W*.92-5*bw)/4,y0=H*.1,bh=H*.3,X0=W*.04,p=(t*.5)%1*5.8,ai=Math.floor(p);
+  L.forEach((l,i)=>{const bx=X0+i*(bw+gap),on=ai==i,col=on?Y:G,mx=bx+bw/2,my=y0+bh*.42;x.strokeStyle=col;x.lineWidth=on?3:2;x.strokeRect(bx,y0,bw,bh);
+   if(i==0)spk4(x,mx,my,bw*.8,t,1);
+   else if(i==1){for(let m=0;m<3;m++){const r=(t*bw*.4+m*bw*.2)%(bw*.6);x.strokeStyle=`rgba(111,183,201,${1-r/(bw*.6)})`;x.lineWidth=2;x.beginPath();x.arc(bx+bw*.15,my,r,-.9,.9);x.stroke()}}
+   else if(i==2){for(let q=0;q<3;q++){const ex=bx+bw*(.22+.28*q);x.strokeStyle=G;x.lineWidth=1.5;dash(x,()=>{x.beginPath();x.arc(ex,my,bw*.07,0,TAU);x.stroke()});x.fillStyle=CY;x.beginPath();x.arc(ex+bw*.05*Math.sin(t*5-q*.9),my,bw*.045,0,TAU);x.fill()}}
+   else if(i==3){x.strokeStyle=Y;x.lineWidth=3;x.beginPath();for(let q=0;q<=20;q++){const u=q/20,yy=my+Math.sin(t*20)*bh*.08*Math.sin(Math.PI*u);q?x.lineTo(bx+bw*(.1+.8*u),yy):x.moveTo(bx+bw*.1,yy)}x.stroke()}
+   else{x.strokeStyle=Y;x.lineWidth=3;x.beginPath();x.moveTo(bx+bw*.1,my+bh*.1);x.lineTo(bx+bw*.9,my+bh*.1);x.stroke();for(let g=0;g<5;g++){x.fillStyle=INK;x.beginPath();x.arc(bx+bw*(.18+.16*g),my+bh*.1-5-Math.abs(Math.sin(t*8+g*1.7))*bh*.22,4,0,TAU);x.fill()}}
+   l.forEach((s,q)=>txt(x,s,mx,y0+bh+W/44*(q+1.1),W/56,on?Y:INK,'center'));
+   if(i<4){x.fillStyle=on?Y:G;arrow(x,bx+bw+4,y0+bh*.42,bx+bw+gap-4,y0+bh*.42,on?Y:G)}});
+  x.fillStyle='rgba(232,200,114,.1)';x.fillRect(W*.1,H*.64,W*.8,H*.24);x.strokeStyle=Y;x.lineWidth=3;x.strokeRect(W*.1,H*.64,W*.8,H*.24);
+  txt(x,'SOUND CARRIES ENERGY',W/2,H*.76,W/17,Y,'center');txt(x,'It is passed on through the medium, step by step.',W/2,H*.84,W/38,INK,'center')}};
 scenes[11]=(x,W,H,dt)=>{x.clearRect(0,0,W,H);const n=st('#ch11'),kt=tick('#ch11',dt),ph=wt*2;
  if(!n)return hint(x,W,H,'Press  Next step ▶  to build the big picture');
  if(n==1){ruler(x,W*.3,H*.45,W*.4);txt(x,'a vibrating object',W/2,H*.75,W/36,G,'center');cap(x,W,H,'Vibration starts the disturbance.')}
