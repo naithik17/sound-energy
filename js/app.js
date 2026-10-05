@@ -1,13 +1,13 @@
 // Slide engine + physics scenes. Scenes are keyed by slide number (1-based).
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const slides=$$('.slide');let cur=0,wt=0;
-const S={ch:{},k:{},s9:'',mode:'before',amp:0,p3:-1,on3:false,ld:38,w7:0,play:true,rev:0,revT:0,hl:'',tm:'x',ct:{}};
+const S={ch:{},k:{},s9:'',mode:'before',amp:0,p3:-1,on3:false,ld:38,f3:[],a3:0,v3:0,h3:0,r3:0,w7:0,play:true,rev:0,revT:0,hl:'',tm:'x',ct:{}};
 const TAU=Math.PI*2,INK='#f3ecd0',G='#7fa68a',CY='#6fb7c9',Y='#e8c872';
 function fit(c){const d=devicePixelRatio||1,r=c.getBoundingClientRect();c.width=r.width*d;c.height=r.height*d;c.W=r.width;c.H=r.height;c.x=c.getContext('2d');c.x.setTransform(d,0,0,d,0,0)}
 const fitAll=()=>$$('canvas').forEach(fit);addEventListener('resize',fitAll);
 function go(i){cur=Math.max(0,Math.min(slides.length-1,i));slides.forEach((s,j)=>s.classList.toggle('on',j==cur));
  $('#bar i').style.width=cur/(slides.length-1)*100+'%';$('#num').textContent=cur+1+' / '+slides.length;$('#menu').classList.remove('on');
- if(cur==2){S.p3=-1;S.on3=false;sync3();$('#m3').classList.remove('show')}if(cur==7){S.revT=0;S.rev=0;S.hl=''}history.replaceState(null,'','#'+(cur+1))}
+ if(cur==2){S.p3=-1;S.on3=false;S.f3=[];S.a3=0;S.v3=0;S.h3=0;S.r3=0;sync3();$('#m3').classList.remove('show')}if(cur==7){S.revT=0;S.rev=0;S.hl=''}history.replaceState(null,'','#'+(cur+1))}
 $('#menu').innerHTML=slides.map((s,i)=>`<a data-a="go:${i}">${i+1}. ${s.dataset.t}</a>`).join('');
 const acts={
  go:v=>go(+v),nav:v=>go(cur+ +v),menu:()=>$('#menu').classList.toggle('on'),
@@ -37,24 +37,34 @@ function block(x,X,Y0,w,h,amp,t,o={}){const rows=o.rows||5,cols=o.cols||36,sp=w/
 const scenes={
 1:(x,W,H)=>{x.clearRect(0,0,W,H);x.strokeStyle=G;x.lineWidth=2;for(let n=0;n<3;n++){x.beginPath();for(let i=0;i<=W;i+=8){const y=H*(.55+.12*n)+Math.sin(i/70+wt*(1+n*.4))*(18+n*10);i?x.lineTo(i,y):x.moveTo(i,y)}x.stroke()}},
 3:(x,W,H,dt)=>{x.clearRect(0,0,W,H);
- // S.p3 = simulation time (advances only while playing); S.on3 = isPlaying; S.ld = loudness 0-100
+ // ONE state: S.on3 = isPlaying, S.ld = loudness 0-100. Everything below is derived from these two.
+ // S.p3 = simulation time (advances only while playing); S.f3 = live wavefronts (radii)
  if(S.on3){S.p3+=dt;if(S.p3>3)$('#m3').classList.add('show')}
- const T=Math.max(0,S.p3),started=S.p3>=0,sy=H*.62,cx0=W*.6,cx1=W*.92,ox=W*.13,oy=H*.62,L=S.ld/100,amp=.03+.97*Math.pow(L,.85);
- // source (speaker-like box): vibration AMPLITUDE follows loudness, frequency is fixed
- const v=Math.sin(T*30)*amp*W*.011;x.strokeStyle=INK;x.lineWidth=3;x.strokeRect(W*.06+v,H*.48,W*.07,H*.28);txt(x,'loud sound source',W*.03,H*.45,W/45,INK);
- // continuous stream of evenly spaced wavefronts: source -> )) -> )) -> )) -> sheet (fixed speed, loops forever while playing)
- if(started){const sp=W*.075,R=cx0-ox+W*.03,spd=W*.16,al=.35+.65*Math.max(.25,L);x.lineWidth=2.5;x.lineCap='round';
-  for(let n=0;n*sp<=R+sp;n++){const r=(T*spd+n*sp)%(Math.ceil(R/sp)*sp);if(r<W*.012||r>R)continue;const f=Math.min(1,r/(W*.04))*(r>R*.8?(R-r)/(R*.2):1);
-   x.strokeStyle=`rgba(111,183,201,${al*f})`;x.beginPath();x.arc(ox,oy,r,-.62,.62);x.stroke()}x.lineCap='butt'}
- // wave origin marker
- x.fillStyle=CY;x.beginPath();x.arc(ox+3,oy,4+(S.on3?2*Math.abs(Math.sin(T*6)):0),0,TAU);x.fill();
+ const T=Math.max(0,S.p3),sy=H*.62,cx0=W*.6,cx1=W*.92,L=S.ld/100,
+  amp=L<=0?0:Math.pow(L,1.15), // loudness -> AMPLITUDE (exactly 0 at 0%, no minimum value)
+  sx=W*.06,sw=W*.07,ox=sx+sw,oy=H*.62,spd=W*.16,sp=W*.075,R=cx0-ox+W*.03,active=S.on3&&L>0;
+ // ---- wave system: continuous emission while playing and loudness>0; frozen when paused
+ if(active){S.a3+=dt;const iv=sp/spd;while(S.a3>=iv){S.a3-=iv;S.f3.push(S.a3*spd)}
+  for(let i=0;i<S.f3.length;i++)S.f3[i]+=spd*dt;
+  S.f3=S.f3.filter(r=>r<=R);if(S.f3.some(r=>r>R*.93))S.r3=1;if(S.r3)S.h3=Math.min(1,S.h3+dt*1.5)}
+ // visibility fades out when loudness is 0 (not an animation of motion); fronts are cleared once invisible
+ S.v3+=((L>0?1:0)-S.v3)*Math.min(1,dt*8);if(L<=0&&S.v3<.01){S.v3=0;S.f3=[];S.a3=0;S.h3=0;S.r3=0}
+ // ---- source: rectangle and blue dot share ONE displacement
+ const v=Math.sin(T*30)*amp*W*.011; // T is frozen when paused, amp is 0 at 0%
+ x.strokeStyle=INK;x.lineWidth=3;x.strokeRect(sx+v,H*.48,sw,H*.28);txt(x,'loud sound source',W*.03,H*.45,W/45,INK);
+ // wavefronts: arcs from the source towards the sheet
+ const al=(.35+.65*L)*S.v3;x.lineWidth=2.5;x.lineCap='round';
+ if(al>0)for(const r of S.f3){if(r<W*.012)continue;const f=Math.min(1,r/(W*.04))*(r>R*.8?(R-r)/(R*.2):1);
+  x.strokeStyle=`rgba(111,183,201,${al*f})`;x.beginPath();x.arc(ox,oy,r,-.62,.62);x.stroke()}x.lineCap='butt';
+ // blue dot = contact point on the source's right face, moves with the source (same v)
+ x.fillStyle=CY;x.beginPath();x.arc(ox+v,oy,5,0,TAU);x.fill();
  // container + sheet
  x.strokeStyle=INK;x.lineWidth=3;x.beginPath();x.moveTo(cx0,sy);x.lineTo(cx0,H*.92);x.lineTo(cx1,H*.92);x.lineTo(cx1,sy);x.stroke();txt(x,'container',cx0+W*.1,H*.97,W/45,INK);
- // sheet starts responding once the first wavefront has had time to arrive, then stays driven
- const hit=started?Math.min(1,Math.max(0,(T-(cx0-ox)/(W*.16))*1.5)):0,A=hit*amp*H*.03;x.strokeStyle=Y;x.lineWidth=4;x.beginPath();for(let i=0;i<=40;i++){const px=cx0+(cx1-cx0)*i/40;i?x.lineTo(px,sy+Math.sin(T*28)*A*Math.sin(Math.PI*i/40)):x.moveTo(px,sy)}x.stroke();
+ // sheet responds once the first wavefront has reached it; amplitude follows loudness
+ const hit=S.h3,A=hit*amp*H*.03;x.strokeStyle=Y;x.lineWidth=4;x.beginPath();for(let i=0;i<=40;i++){const px=cx0+(cx1-cx0)*i/40;i?x.lineTo(px,sy+Math.sin(T*28)*A*Math.sin(Math.PI*i/40)):x.moveTo(px,sy)}x.stroke();
  txt(x,'stretched sheet',cx0,sy-H*.3,W/45,Y);
- // grains: individual phase/frequency; hop height follows loudness and is capped
- for(let i=0;i<9;i++){const gx=cx0+(cx1-cx0)*(i+.5)/9,ph=i*1.7+Math.sin(i*2.3)*.8,fq=9+(i%3)*.6,hop=hit?Math.pow(Math.abs(Math.sin(T*fq+ph)),1.4)*H*.085*amp*hit:0;
+ // grains: individual phase/frequency; hop height follows loudness and is capped (0 at 0%)
+ for(let i=0;i<9;i++){const gx=cx0+(cx1-cx0)*(i+.5)/9,ph=i*1.7+Math.sin(i*2.3)*.8,fq=9+(i%3)*.6,hop=Math.pow(Math.abs(Math.sin(T*fq+ph)),1.4)*H*.085*amp*hit;
   x.fillStyle=INK;x.beginPath();x.arc(gx+Math.sin(T*fq*.5+ph)*amp*hit*W*.003,sy-6-hop,5,0,TAU);x.fill()}
  txt(x,'grains',cx1-W*.05,sy-H*.12,W/45,INK)},
 5:(x,W,H,dt)=>{x.clearRect(0,0,W,H);const tg=S.mode=='during'?1:0;S.amp+=(tg-S.amp)*Math.min(1,dt*3);const a=S.amp,bx=W*.04,bw=W*.92,by=H*.08,bh=H*.84;
