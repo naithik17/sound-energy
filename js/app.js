@@ -97,34 +97,35 @@ const scenes={
   mk(S.ct.trough,X0+3*Math.PI/(2*k),ay+gh,'TROUGH: minimum density',CY)}}};
 const P5=Array.from({length:46},()=>({x:Math.random(),y:Math.random(),a:Math.random()*6,b:Math.random()*6,s:.8+Math.random()*1.2}));
 // ===== added: visual explanation panels (What happens / Recap / Crest & Trough)
+let AS=1; // movement-amplitude scale; only Slide 4 sets it (<1) while it draws, then resets to 1
 const tick=(id,dt)=>S.k[id]=(S.k[id]||0)+dt,st=id=>S.ch[id]||0;
 function ln(x,a,b,c,d,col,w=2){x.strokeStyle=col;x.lineWidth=w;x.beginPath();x.moveTo(a,b);x.lineTo(c,d);x.stroke()}
 function dash(x,f){x.setLineDash([5,5]);f();x.setLineDash([])}
-function speaker(x,cx,cy,s,on){const v=on?Math.sin(wt*30)*s*.05:0;x.strokeStyle=INK;x.lineWidth=3;x.strokeRect(cx-s*.5,cy-s*.3,s*.4,s*.6);x.beginPath();x.moveTo(cx-s*.1+v,cy-s*.15);x.lineTo(cx+s*.25+v,cy-s*.42);x.lineTo(cx+s*.25+v,cy+s*.42);x.lineTo(cx-s*.1+v,cy+s*.15);x.closePath();x.stroke()}
+function speaker(x,cx,cy,s,on){const v=on?Math.sin(wt*30)*s*.05*AS:0;x.strokeStyle=INK;x.lineWidth=3;x.strokeRect(cx-s*.5,cy-s*.3,s*.4,s*.6);x.beginPath();x.moveTo(cx-s*.1+v,cy-s*.15);x.lineTo(cx+s*.25+v,cy-s*.42);x.lineTo(cx+s*.25+v,cy+s*.42);x.lineTo(cx-s*.1+v,cy+s*.15);x.closePath();x.stroke()}
 function ruler(x,cx,cy,L){const d=Math.sin(wt*14)*L*.2,b=(dd,al)=>{x.globalAlpha=al;x.strokeStyle=INK;x.lineWidth=5;x.beginPath();x.moveTo(cx,cy);x.quadraticCurveTo(cx+L*.5,cy,cx+L,cy+dd);x.stroke()};b(-L*.2,.2);b(L*.2,.2);b(d,1);x.globalAlpha=1;x.fillStyle=G;x.fillRect(cx-L*.14,cy-L*.12,L*.14,L*.3)}
 function field(x,X,Yt,w,h,rows,cols,amp,ph,front,r,tr,cyc=3){const k=TAU/(w/cyc),sp=w/cols;
- for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const x0=i*sp+sp/2,e=Math.max(0,Math.min(1,(front-x0)/(w*.12))),px=X+x0+.42/k*amp*e*Math.sin(k*x0-ph),py=Yt+h*(j+.5)/rows,t=tr&&j==tr[0]&&i==tr[1];
+ for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const x0=i*sp+sp/2,e=Math.max(0,Math.min(1,(front-x0)/(w*.12))),px=X+x0+.42/k*amp*AS*e*Math.sin(k*x0-ph),py=Yt+h*(j+.5)/rows,t=tr&&j==tr[0]&&i==tr[1];
   if(t){x.strokeStyle=Y;dash(x,()=>{x.beginPath();x.arc(X+x0,py,r*2.2,0,TAU);x.stroke()})}
   x.fillStyle=t?Y:CY;x.beginPath();x.arc(px,py,t?r*1.5:r,0,TAU);x.fill()}return k}
 function bands(x,X,Yt,w,h,ph,front,k){x.fillStyle='rgba(232,200,114,.13)';for(let n=-1;n<9;n++){const c=(Math.PI*(2*n+1)+ph)/k;if(c>0&&c<Math.min(w,front))x.fillRect(X+c-w/26,Yt,w/13,h)}}
-function vib(x,W,y,cnt,r,A,off,w0=.12,w1=.76){for(let i=0;i<cnt;i++){const cx=W*(w0+w1*i/(cnt-1)),f=m=>cx+A*Math.sin((wt-m*.05)*5+i*off);
+function vib(x,W,y,cnt,r,A,off,w0=.12,w1=.76){for(let i=0;i<cnt;i++){const cx=W*(w0+w1*i/(cnt-1)),f=m=>cx+A*AS*Math.sin((wt-m*.05)*5+i*off);
  x.strokeStyle=G;dash(x,()=>{x.beginPath();x.arc(cx,y,r*1.2,0,TAU);x.stroke()});
  for(let m=4;m>0;m--){x.fillStyle=`rgba(111,183,201,${.1*(5-m)})`;x.beginPath();x.arc(f(m),y,r,0,TAU);x.fill()}
  x.fillStyle=CY;x.beginPath();x.arc(f(0),y,r,0,TAU);x.fill();txt(x,'← →',cx,y+r*2.8,r*1.2,Y,'center')}}
 function sheetScene(x,W,H,grains){const sy=H*.55,c0=W*.5,c1=W*.92,mx=(c0+c1)/2;speaker(x,W*.1,sy+H*.12,W*.16,1);
  for(let m=0;m<4;m++){const r=(wt*W*.2+m*W*.08)%(W*.32);x.strokeStyle=`rgba(111,183,201,${1-r/(W*.32)})`;x.lineWidth=2;x.beginPath();x.arc(W*.17,sy+H*.12,r,-.7,.7);x.stroke()}
  x.strokeStyle=INK;x.lineWidth=3;x.beginPath();x.moveTo(c0,sy);x.lineTo(c0,H*.82);x.lineTo(c1,H*.82);x.lineTo(c1,sy);x.stroke();txt(x,'container',mx,H*.87,W/42,INK,'center');
- const A=H*.03,f=u=>sy+Math.sin(wt*28)*A*Math.sin(Math.PI*u);x.strokeStyle=Y;x.lineWidth=4;x.beginPath();for(let i=0;i<=40;i++)i?x.lineTo(c0+(c1-c0)*i/40,f(i/40)):x.moveTo(c0,sy);x.stroke();
+ const A=H*.03*AS,f=u=>sy+Math.sin(wt*28)*A*Math.sin(Math.PI*u);x.strokeStyle=Y;x.lineWidth=4;x.beginPath();for(let i=0;i<=40;i++)i?x.lineTo(c0+(c1-c0)*i/40,f(i/40)):x.moveTo(c0,sy);x.stroke();
  txt(x,'stretched sheet',mx,sy+H*.1,W/42,Y,'center');
- if(grains)for(let i=0;i<9;i++){x.fillStyle=INK;x.beginPath();x.arc(c0+(c1-c0)*(i+.5)/9,f((i+.5)/9)-6-Math.abs(Math.sin(wt*9+i*1.7))*H*.13,5,0,TAU);x.fill()}
+ if(grains)for(let i=0;i<9;i++){x.fillStyle=INK;x.beginPath();x.arc(c0+(c1-c0)*(i+.5)/9,f((i+.5)/9)-6-Math.abs(Math.sin(wt*9+i*1.7))*H*.13*AS,5,0,TAU);x.fill()}
  else{arrow(x,mx,sy-H*.22,mx,sy-H*.06,Y);arrow(x,mx,sy-H*.06,mx,sy-H*.22,Y);txt(x,'↑ ↓',mx+W*.04,sy-H*.13,W/36,Y)}}
 function mini(x,i,rx,ry,rw,rh,a){x.globalAlpha=.5+.5*a;const my=ry+rh/2;
  if(i==0)speaker(x,rx+rw*.3,my,rh*1.1,1);
  else if(i==1)field(x,rx,ry,rw,rh,3,30,1,wt*2,1e9,2.5);
- else if(i==2){const k=TAU/(rw/3);x.strokeStyle=Y;x.lineWidth=3;x.beginPath();for(let q=0;q<=rw;q+=4){const yy=my+rh*.35*Math.cos(k*q-wt*2);q?x.lineTo(rx+q,yy):x.moveTo(rx,yy)}x.stroke();x.strokeStyle=G;dash(x,()=>{x.beginPath();x.moveTo(rx,my);x.lineTo(rx+rw,my);x.stroke()})}
- else{const sy=ry+rh*.45,c0=rx+rw*.15,c1=rx+rw*.85,A=rh*.1;x.strokeStyle=INK;x.lineWidth=2;x.beginPath();x.moveTo(c0,sy);x.lineTo(c0,ry+rh);x.lineTo(c1,ry+rh);x.lineTo(c1,sy);x.stroke();
+ else if(i==2){const k=TAU/(rw/3);x.strokeStyle=Y;x.lineWidth=3;x.beginPath();for(let q=0;q<=rw;q+=4){const yy=my+rh*.35*AS*Math.cos(k*q-wt*2);q?x.lineTo(rx+q,yy):x.moveTo(rx,yy)}x.stroke();x.strokeStyle=G;dash(x,()=>{x.beginPath();x.moveTo(rx,my);x.lineTo(rx+rw,my);x.stroke()})}
+ else{const sy=ry+rh*.45,c0=rx+rw*.15,c1=rx+rw*.85,A=rh*.1*AS;x.strokeStyle=INK;x.lineWidth=2;x.beginPath();x.moveTo(c0,sy);x.lineTo(c0,ry+rh);x.lineTo(c1,ry+rh);x.lineTo(c1,sy);x.stroke();
   const f=u=>sy+Math.sin(wt*28)*A*Math.sin(Math.PI*u);x.strokeStyle=Y;x.lineWidth=3;x.beginPath();for(let q=0;q<=20;q++)q?x.lineTo(c0+(c1-c0)*q/20,f(q/20)):x.moveTo(c0,sy);x.stroke();
-  if(i==4)for(let g=0;g<7;g++){x.fillStyle=INK;x.beginPath();x.arc(c0+(c1-c0)*(g+.5)/7,f((g+.5)/7)-5-Math.abs(Math.sin(wt*9+g*1.7))*rh*.4,3.5,0,TAU);x.fill()}}
+  if(i==4)for(let g=0;g<7;g++){x.fillStyle=INK;x.beginPath();x.arc(c0+(c1-c0)*(g+.5)/7,f((g+.5)/7)-5-Math.abs(Math.sin(wt*9+g*1.7))*rh*.4*AS,3.5,0,TAU);x.fill()}}
  x.globalAlpha=1}
 function chainRows(x,W,H,L,rowf,y0,sp,rh,bw,pulseSpeed){const N=L.length,p=(wt*pulseSpeed)%1*(N+.4),ai=Math.floor(p);
  L.forEach((s,i)=>{const ry=y0+i*sp,on=ai==i;x.strokeStyle=on?Y:G;x.lineWidth=on?3:2;x.strokeRect(W*.03,ry,bw,rh);txt(x,s,W*.03+bw/2,ry+rh*.62,Math.min(W/38,rh*.5),on?Y:INK,'center');
@@ -143,6 +144,7 @@ scenes[4]=(x,W,H,dt)=>{x.clearRect(0,0,W,H);const n=st('#ch4'),kt=tick('#ch4',dt
  else if(n<6){sheetScene(x,W,H,n==5);if(n==4)cap(x,W,H,'Air vibrations make the sheet vibrate.');else{txt(x,'The vibrating sheet makes the grains move.',W/2,H*.93,W/30,INK,'center');const a=Math.min(1,kt/.8);x.globalAlpha=a;x.strokeStyle=Y;x.lineWidth=3;x.strokeRect(W*.1,H*.03,W*.8,H*.13);txt(x,'SOUND TRANSFERS ENERGY.',W/2,H*.12,W/18,Y,'center');x.globalAlpha=1}}
  else{const L=['SOUND SOURCE','AIR PARTICLES','WAVE / DISTURBANCE','VIBRATING SHEET','MOVING GRAINS'];chainRows(x,W,H,L,(i,rx,ry,rw,rh,a)=>mini(x,i==4?4:i==3?3:i,rx,ry,rw,rh,a),H*.02,H*.165,H*.13,W*.3,.2);
   txt(x,'SOUND TRANSFERS ENERGY THROUGH THE MEDIUM',W/2,H*.97,W/27,Y,'center');ln(x,W*.1,H*.99,W*.9,H*.99,Y,3)}};
+{const s4=scenes[4];scenes[4]=(...a)=>{AS=.82;try{return s4(...a)}finally{AS=1}}} // Slide 4: ~18% calmer movement amplitude (timing unchanged)
 scenes[11]=(x,W,H,dt)=>{x.clearRect(0,0,W,H);const n=st('#ch11'),kt=tick('#ch11',dt),ph=wt*2;
  if(!n)return hint(x,W,H,'Press  Next step ▶  to build the big picture');
  if(n==1){ruler(x,W*.3,H*.45,W*.4);txt(x,'a vibrating object',W/2,H*.75,W/36,G,'center');cap(x,W,H,'Vibration starts the disturbance.')}
